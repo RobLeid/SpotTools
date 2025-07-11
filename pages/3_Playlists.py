@@ -3,6 +3,8 @@ import base64
 import pandas as pd
 import streamlit as st
 from io import BytesIO
+from PIL import Image
+from urllib.request import urlopen
 import re
 
 # Load environment variables
@@ -32,16 +34,23 @@ def parse_playlist_id(user_input):
             return match.group(1)
     return user_input
 
-# Get all tracks from playlist (with pagination)
-def get_playlist_tracks(playlist_id, access_token):
+# Get playlist metadata and tracks
+def get_playlist_metadata_and_tracks(playlist_id, access_token):
     headers = {"Authorization": f"Bearer {access_token}"}
-    url = f"https://api.spotify.com/v1/playlists/{playlist_id}/tracks"
+    base_url = f"https://api.spotify.com/v1/playlists/{playlist_id}"
+
+    # Get metadata
+    meta_response = requests.get(base_url, headers=headers)
+    meta_data = meta_response.json()
+    playlist_name = meta_data.get("name", "Unknown Playlist")
+    playlist_image_url = meta_data["images"][0]["url"] if meta_data.get("images") else None
+
+    # Get tracks with pagination
     tracks = []
     offset = 0
     limit = 100
-
     while True:
-        response = requests.get(f"{url}?offset={offset}&limit={limit}", headers=headers)
+        response = requests.get(f"{base_url}/tracks?offset={offset}&limit={limit}", headers=headers)
         data = response.json()
         items = data.get("items", [])
         if not items:
@@ -51,7 +60,7 @@ def get_playlist_tracks(playlist_id, access_token):
         if len(items) < limit:
             break
 
-    return tracks
+    return playlist_name, playlist_image_url, tracks
 
 # Convert DataFrame to Excel
 def to_excel(df):
@@ -60,7 +69,6 @@ def to_excel(df):
         df.to_excel(writer, index=False, sheet_name='Playlist')
     output.seek(0)
     return output
-
 # Streamlit app
 def main():
     st.title("📃 Spotify Playlist Info Finder")
@@ -69,7 +77,10 @@ def main():
     if user_input:
         playlist_id = parse_playlist_id(user_input)
         access_token = get_access_token(client_id, client_secret)
-        playlist_tracks = get_playlist_tracks(playlist_id, access_token)
+        playlist_name, playlist_image_url, playlist_tracks = get_playlist_metadata_and_tracks(playlist_id, access_token)
+
+        if playlist_image_url:
+            st.image(playlist_image_url, caption=playlist_name, use_container_width=True)
 
         if playlist_tracks:
             simplified_data = []

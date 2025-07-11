@@ -3,6 +3,8 @@ import base64
 import pandas as pd
 import streamlit as st
 from io import BytesIO
+from PIL import Image
+from urllib.request import urlopen
 import re
 
 # Load environment variables
@@ -32,12 +34,20 @@ def parse_artist_id(user_input):
             return match.group(1)
     return user_input
 
-# Get top tracks for artist
-def get_artist_top_tracks(artist_id, access_token, market="US"):
-    url = f"https://api.spotify.com/v1/artists/{artist_id}/top-tracks?market={market}"
+# Get artist metadata and top tracks
+def get_artist_metadata_and_top_tracks(artist_id, access_token, market="US"):
     headers = {"Authorization": f"Bearer {access_token}"}
-    response = requests.get(url, headers=headers)
-    return response.json().get("tracks", [])
+    artist_url = f"https://api.spotify.com/v1/artists/{artist_id}"
+    top_tracks_url = f"{artist_url}/top-tracks?market={market}"
+
+    artist_response = requests.get(artist_url, headers=headers).json()
+    top_tracks_response = requests.get(top_tracks_url, headers=headers).json()
+
+    artist_name = artist_response.get("name", "Unknown Artist")
+    artist_image_url = artist_response["images"][0]["url"] if artist_response.get("images") else None
+    top_tracks = top_tracks_response.get("tracks", [])
+
+    return artist_name, artist_image_url, top_tracks
 
 # Convert DataFrame to Excel
 def to_excel(df):
@@ -55,7 +65,10 @@ def main():
     if user_input:
         artist_id = parse_artist_id(user_input)
         access_token = get_access_token(client_id, client_secret)
-        top_tracks = get_artist_top_tracks(artist_id, access_token)
+        artist_name, artist_image_url, top_tracks = get_artist_metadata_and_top_tracks(artist_id, access_token)
+
+        if artist_image_url:
+            st.image(artist_image_url, caption=artist_name, use_container_width=True)
 
         if top_tracks:
             simplified_data = [{

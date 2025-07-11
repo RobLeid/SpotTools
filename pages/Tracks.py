@@ -3,11 +3,11 @@ import base64
 import pandas as pd
 import streamlit as st
 from io import BytesIO
+import re
 
 # Load environment variables
 client_id = st.secrets["CLIENT_ID"]
 client_secret = st.secrets["CLIENT_SECRET"]
-
 
 # Function to get the access token
 def get_access_token(client_id, client_secret):
@@ -26,19 +26,25 @@ def get_access_token(client_id, client_secret):
 
 # Function to extract track IDs from input
 def parse_track_ids(user_input):
-    raw_ids = [item.strip() for item in user_input.split(",")]
+    raw_items = [item.strip() for item in user_input.split(",")]
     track_ids = []
 
-    for item in raw_ids:
+    for item in raw_items:
         if item.startswith("spotify:"):
             parts = item.split(":")
             if len(parts) == 3 and parts[1] == "track":
                 track_ids.append(parts[2])
             else:
                 st.error(f"Invalid URI: '{item}' is not a track URI.")
+        elif "open.spotify.com" in item:
+            match = re.search(r"spotify\.com/track/([a-zA-Z0-9]+)", item)
+            if match:
+                track_ids.append(match.group(1))
+            else:
+                st.error(f"Invalid URL: '{item}' does not contain a valid track ID.")
         else:
             track_ids.append(item)
-    
+
     return track_ids
 
 # Function to get track metadata
@@ -74,7 +80,7 @@ def to_excel(df):
 # Main Streamlit app
 def main():
     st.title("🎵 Spotify Track Info Finder")
-    user_input = st.text_input("Enter up to 50 Spotify track IDs or URIs (comma-separated)")
+    user_input = st.text_input("Enter up to 50 Spotify track IDs, URIs, or URLs (comma-separated)")
 
     if user_input:
         track_ids = parse_track_ids(user_input)

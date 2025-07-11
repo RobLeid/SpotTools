@@ -44,21 +44,36 @@ def parse_album_id(user_input):
     else:
         return user_input
 
-# Get all track IDs from album
+# Get all track IDs from album (with pagination)
 def get_album_tracks(album_id, access_token):
-    url = f"https://api.spotify.com/v1/albums/{album_id}"
     headers = {"Authorization": f"Bearer {access_token}"}
-    response = requests.get(url, headers=headers)
-    data = response.json()
+    base_url = f"https://api.spotify.com/v1/albums/{album_id}/tracks"
+    album_url = f"https://api.spotify.com/v1/albums/{album_id}"
 
-    if "tracks" not in data:
-        st.error("Could not retrieve album data. Please check the album ID, URI, or URL.")
-        return [], None, None
+    # Get album metadata
+    album_response = requests.get(album_url, headers=headers)
+    album_data = album_response.json()
+    album_name = album_data.get("name", "Unknown Album")
+    album_image_url = album_data["images"][0]["url"] if album_data.get("images") else None
 
-    track_ids = [track["id"] for track in data["tracks"]["items"]]
-    album_name = data["name"]
-    album_image_url = data["images"][0]["url"] if data["images"] else None
-    return track_ids, album_name, album_image_url
+    # Paginate through all tracks
+    track_items = []
+    limit = 50
+    offset = 0
+
+    while True:
+        response = requests.get(f"{base_url}?limit={limit}&offset={offset}", headers=headers)
+        data = response.json()
+        items = data.get("items", [])
+        if not items:
+            break
+        track_items.extend(items)
+        if len(items) < limit:
+            break
+        offset += limit
+
+    track_ids = [track["id"] for track in track_items]
+    return track_ids, album_name, album_image_url, track_items
 
 # Get metadata for track IDs
 def get_tracks(track_ids, access_token):
@@ -96,23 +111,27 @@ def main():
             return
 
         access_token = get_access_token(client_id, client_secret)
-        track_ids, album_name, album_image_url = get_album_tracks(album_id, access_token)
+        track_ids, album_name, album_image_url, track_items = get_album_tracks(album_id, access_token)
 
         if not track_ids:
             return
 
         tracks = get_tracks(track_ids, access_token)
 
-        simplified_data = [{
-            "Track Name": t["name"],
-            "Album Name": t["album"]["name"],
-            "Artist(s)": ", ".join([artist["name"] for artist in t["artists"]]),
-            "ISRC": t.get("external_ids", {}).get("isrc", "N/A"),
-            "Spotify URL": t["external_urls"]["spotify"]
-        } for t in tracks]
+        simplified_data = []
+        for t, meta in zip(tracks, track_items):
+            simplified_data.append({
+                "Disc Number": meta.get("disc_number", "N/A"),
+                "Track Number": meta.get("track_number", "N/A"),
+                "Track Name": t["name"],
+                "Album Name": t["album"]["name"],
+                "Artist(s)": ", ".join([artist["name"] for artist in t["artists"]]),
+                "ISRC": t.get("external_ids", {}).get("isrc", "N/A"),
+                "Spotify URL": t["external_urls"]["spotify"]
+            })
 
         df = pd.DataFrame(simplified_data)
-        st.dataframe(df)
+        st.dataframe(df, use_container_width=True, hide_index=True)
 
         excel_data = to_excel(df)
         st.download_button(

@@ -80,14 +80,14 @@ def to_excel(df):
 # Main Streamlit app
 def main():
     st.title("🎵 Spotify Track Info Finder")
-    user_input = st.text_input("Enter up to 50 Spotify track IDs, URIs, or URLs (comma-separated)")
+    user_input = st.text_input("Enter Spotify track IDs, URIs, or URLs (comma-separated)")
 
     if user_input:
         track_ids = parse_track_ids(user_input)
 
-        if len(track_ids) > 50:
-            st.warning("You entered more than 50 track IDs. Only the first 50 will be processed.")
-            track_ids = track_ids[:50]
+        if not track_ids:
+            st.warning("No valid track IDs found.")
+            return
 
         access_token = get_access_token(client_id, client_secret)
         tracks = get_tracks(track_ids, access_token)
@@ -102,7 +102,7 @@ def main():
             } for t in tracks]
 
             df = pd.DataFrame(simplified_data)
-            st.dataframe(df)
+            st.dataframe(df, use_container_width=True, hide_index=True)
 
             excel_data = to_excel(df)
             st.download_button(

@@ -5,13 +5,16 @@ st.set_page_config(
     page_icon="👋",
 )
 
-st.write("# Welcome to Robert's ISRC Finder! 👋")
+st.write("# Welcome to Robert's ISRC Finder!👋")
 
 st.sidebar.success("Please select a page")
 
 st.markdown(
     """
    
+    
+
+    
     ## 👈 Please select a page on the sidebar
     
 """

@@ -70,7 +70,7 @@ def get_tracks(track_ids, access_token):
 # Convert DataFrame to Excel
 def to_excel(df):
     output = BytesIO()
-    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
         df.to_excel(writer, index=False, sheet_name='Tracks')
     output.seek(0)
     return output

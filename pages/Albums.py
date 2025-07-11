@@ -5,6 +5,7 @@ import streamlit as st
 from io import BytesIO
 from PIL import Image
 from urllib.request import urlopen
+import re
 
 # Load environment variables
 client_id = st.secrets["CLIENT_ID"]
@@ -24,15 +25,24 @@ def get_access_token(client_id, client_secret):
     response = requests.post(auth_url, headers=headers, data=data)
     return response.json()['access_token']
 
-# Parse album ID from URI or plain ID
+# Parse album ID from URI, URL, or plain ID
 def parse_album_id(user_input):
+    user_input = user_input.strip()
+
     if user_input.startswith("spotify:album:"):
         return user_input.split(":")[2]
+    elif "open.spotify.com/album/" in user_input:
+        match = re.search(r"spotify\.com/album/([a-zA-Z0-9]+)", user_input)
+        if match:
+            return match.group(1)
+        else:
+            st.error("Invalid album URL. Could not extract album ID.")
+            return None
     elif user_input.startswith("spotify:"):
-        st.error("This is not an album URI. Please enter a valid album URI or ID.")
+        st.error("This is not an album URI. Please enter a valid album URI, URL, or ID.")
         return None
     else:
-        return user_input.strip()
+        return user_input
 
 # Get all track IDs from album
 def get_album_tracks(album_id, access_token):
@@ -42,7 +52,7 @@ def get_album_tracks(album_id, access_token):
     data = response.json()
 
     if "tracks" not in data:
-        st.error("Could not retrieve album data. Please check the album ID or URI.")
+        st.error("Could not retrieve album data. Please check the album ID, URI, or URL.")
         return [], None, None
 
     track_ids = [track["id"] for track in data["tracks"]["items"]]
@@ -78,7 +88,7 @@ def to_excel(df):
 # Streamlit app
 def main():
     st.title("💿 Spotify Album Track Info Finder")
-    user_input = st.text_input("Enter a Spotify album URI or album ID")
+    user_input = st.text_input("Enter a Spotify album URI, URL, or album ID")
 
     if user_input:
         album_id = parse_album_id(user_input)

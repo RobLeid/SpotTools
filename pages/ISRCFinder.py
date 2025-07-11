@@ -1,16 +1,13 @@
 import requests
 import base64
-from dotenv import load_dotenv
-import os
 import pandas as pd
 import streamlit as st
 from io import BytesIO
 
 # Load environment variables
-load_dotenv()
+client_id = st.secrets["CLIENT_ID"]
+client_secret = st.secrets["CLIENT_SECRET"]
 
-client_id = os.getenv("CLIENT_ID")
-client_secret = os.getenv("CLIENT_SECRET")
 
 # Function to get the access token
 def get_access_token(client_id, client_secret):

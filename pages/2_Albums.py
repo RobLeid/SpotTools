@@ -142,9 +142,14 @@ def main():
         )
 
         if album_image_url:
-            st.markdown("### Album Artwork")
-            image = Image.open(urlopen(album_image_url))
-            st.image(image, caption=album_name, use_container_width=True)
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.write(' ')
+            with col2:
+                image = Image.open(urlopen(album_image_url))
+                st.image(image, caption=album_name, width=300)
+            with col3:
+                st.write(' ')
 
 if __name__ == "__main__":
     main()

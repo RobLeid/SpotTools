@@ -79,9 +79,6 @@ def main():
         access_token = get_access_token(client_id, client_secret)
         playlist_name, playlist_image_url, playlist_tracks = get_playlist_metadata_and_tracks(playlist_id, access_token)
 
-        if playlist_image_url:
-            st.image(playlist_image_url, caption=playlist_name, use_container_width=True)
-
         if playlist_tracks:
             simplified_data = []
             for item in playlist_tracks:
@@ -105,6 +102,15 @@ def main():
                 file_name="playlist_tracks.xlsx",
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             )
+        if playlist_image_url:
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.write(' ')
+            with col2:
+                st.image(playlist_image_url, caption=playlist_name, width=300)
+            with col3:
+                st.write(' ')
+
         else:
             st.warning("No tracks found or invalid playlist.")
 

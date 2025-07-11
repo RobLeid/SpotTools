@@ -67,9 +67,6 @@ def main():
         access_token = get_access_token(client_id, client_secret)
         artist_name, artist_image_url, top_tracks = get_artist_metadata_and_top_tracks(artist_id, access_token)
 
-        if artist_image_url:
-            st.image(artist_image_url, caption=artist_name, use_container_width=True)
-
         if top_tracks:
             simplified_data = [{
                 "Track Name": t["name"],
@@ -89,6 +86,16 @@ def main():
                 file_name="artist_top_tracks.xlsx",
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             )
+        
+        if artist_image_url:
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.write(' ')
+            with col2:
+                 st.image(artist_image_url, caption=artist_name, width=300)
+            with col3:
+                st.write(' ')
+
         else:
             st.warning("No top tracks found or invalid artist.")
 

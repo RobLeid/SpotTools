@@ -55,6 +55,8 @@ def get_album_tracks(album_id, access_token):
     album_data = album_response.json()
     album_name = album_data.get("name", "Unknown Album")
     album_image_url = album_data["images"][0]["url"] if album_data.get("images") else None
+    upc = album_data.get("external_ids", {}).get("upc", "N/A")
+    label = album_data.get("label", "N/A")
 
     # Paginate through all tracks
     track_items = []
@@ -73,7 +75,7 @@ def get_album_tracks(album_id, access_token):
         offset += limit
 
     track_ids = [track["id"] for track in track_items]
-    return track_ids, album_name, album_image_url, track_items
+    return track_ids, album_name, album_image_url, track_items, upc, label
 
 # Get metadata for track IDs
 def get_tracks(track_ids, access_token):
@@ -111,7 +113,7 @@ def main():
             return
 
         access_token = get_access_token(client_id, client_secret)
-        track_ids, album_name, album_image_url, track_items = get_album_tracks(album_id, access_token)
+        track_ids, album_name, album_image_url, track_items, upc, label = get_album_tracks(album_id, access_token)
 
         if not track_ids:
             return
@@ -131,6 +133,9 @@ def main():
             })
 
         df = pd.DataFrame(simplified_data)
+        df["UPC"] = upc
+        df["Label"] = label
+
         st.dataframe(df, use_container_width=True, hide_index=True)
 
         excel_data = to_excel(df)
@@ -148,8 +153,10 @@ def main():
             with col2:
                 image = Image.open(urlopen(album_image_url))
                 st.image(image, caption=album_name, width=300)
+                st.markdown(f"**Label:** {label}")
+                st.markdown(f"**UPC:** {upc}")
             with col3:
                 st.write(' ')
-
+        
 if __name__ == "__main__":
     main()

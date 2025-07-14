@@ -82,6 +82,7 @@ def get_album_details(album_id, access_token):
     upc = album_data.get("external_ids", {}).get("upc", "N/A")
     label = album_data.get("label", "N/A")
     release_date = album_data.get("release_date", "N/A")
+    release_type = album_data.get("album_type", "N/A").capitalize()
 
     p_line = "N/A"
     for c in album_data.get("copyrights", []):
@@ -129,11 +130,11 @@ def get_album_details(album_id, access_token):
             "UPC": upc,
             "Label": label,
             "℗ Line": p_line,
-            "Release Date": release_date
+            "Release Date": release_date,
+            "Release Type": release_type
         })
 
     return tracks, album_name, album_image_url
-
 
 def to_excel(df):
     output = BytesIO()

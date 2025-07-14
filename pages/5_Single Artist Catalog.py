@@ -144,7 +144,7 @@ def to_excel(df):
     return output
 
 def main():
-    st.title("🎤 Spotify Artist Discography Explorer")
+    st.title("🎤 Spotify Artist Discography")
 
     artist_input = st.text_input("Enter Spotify Artist URI, URL, or ID")
     market = st.selectbox("Select Market (Country Code)", MARKETS, index=MARKETS.index("US"))

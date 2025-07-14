@@ -89,8 +89,9 @@ def get_album_details(album_id, access_token):
             p_line = c.get("text", "N/A")
             break
 
-    # Paginate through all tracks
-    tracks = []
+    # Paginate through all tracks and collect metadata
+    track_items = []
+    track_ids = []
     base_url = f"https://api.spotify.com/v1/albums/{album_id}/tracks"
     limit = 50
     offset = 0
@@ -101,25 +102,35 @@ def get_album_details(album_id, access_token):
         items = data.get("items", [])
         if not items:
             break
-
-        for t in items:
-            tracks.append({
-                "Disc Number": t.get("disc_number", "N/A"),
-                "Track Number": t.get("track_number", "N/A"),
-                "Track Name": t["name"],
-                "Album Name": album_name,
-                "Artist(s)": ", ".join([a["name"] for a in t["artists"]]),
-                "ISRC": t.get("external_ids", {}).get("isrc", "N/A"),
-                "Spotify URL": t["external_urls"]["spotify"],
-                "UPC": upc,
-                "Label": label,
-                "℗ Line": p_line,
-                "Release Date": release_date
-            })
-
+        track_items.extend(items)
+        track_ids.extend([t["id"] for t in items])
         if data.get("next") is None:
             break
         offset += limit
+
+    # Fetch full track metadata (for ISRCs)
+    full_tracks = []
+    for i in range(0, len(track_ids), 50):
+        ids_chunk = ",".join(track_ids[i:i+50])
+        track_response = requests.get(f"https://api.spotify.com/v1/tracks?ids={ids_chunk}", headers=headers)
+        full_tracks.extend(track_response.json().get("tracks", []))
+
+    # Combine metadata
+    tracks = []
+    for meta, full in zip(track_items, full_tracks):
+        tracks.append({
+            "Disc Number": meta.get("disc_number", "N/A"),
+            "Track Number": meta.get("track_number", "N/A"),
+            "Track Name": full.get("name", meta.get("name")),
+            "Album Name": album_name,
+            "Artist(s)": ", ".join([a["name"] for a in full.get("artists", [])]),
+            "ISRC": full.get("external_ids", {}).get("isrc", "N/A"),
+            "Spotify URL": full.get("external_urls", {}).get("spotify", "N/A"),
+            "UPC": upc,
+            "Label": label,
+            "℗ Line": p_line,
+            "Release Date": release_date
+        })
 
     return tracks, album_name, album_image_url
 

@@ -136,27 +136,23 @@ def main():
         df["UPC"] = upc
         df["Label"] = label
 
-        st.dataframe(df, use_container_width=True, hide_index=True)
-
-        excel_data = to_excel(df)
-        st.download_button(
-            label="📥 Download as Excel",
-            data=excel_data,
-            file_name=f"{album_name}_tracks.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-        )
-
+        
         if album_image_url:
-            col1, col2, col3 = st.columns(3)
+            col1, col2 = st.columns([2, 6])
+
             with col1:
-                st.write(' ')
-            with col2:
                 image = Image.open(urlopen(album_image_url))
-                st.image(image, caption=album_name, width=300)
-                st.markdown(f"**Label:** {label}")
-                st.markdown(f"**UPC:** {upc}")
-            with col3:
-                st.write(' ')
+                st.image(image, caption=album_name)
+                excel_data = to_excel(df)
+                st.download_button(
+                    label="📥 Download as Excel",
+                    data=excel_data,
+                    file_name=f"{album_name}_tracks.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                )
+
+            with col2:
+                st.dataframe(df, use_container_width=True, hide_index=True)
         
 if __name__ == "__main__":
     main()

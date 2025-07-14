@@ -59,7 +59,7 @@ def to_excel(df):
 
 # Streamlit app
 def main():
-    st.title("🎤 Spotify Artist Top Tracks Finder")
+    st.title("🎤 Spotify Artist Top Tracks")
     user_input = st.text_input("Enter a Spotify artist URI, URL, or ID")
 
     if user_input:

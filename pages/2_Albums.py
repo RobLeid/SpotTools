@@ -109,7 +109,7 @@ def to_excel(df):
 
 # Streamlit app
 def main():
-    st.title("💿 Spotify Album Track Info Finder")
+    st.title("💿 Spotify Album Info")
 
     user_input = st.text_area("Enter multiple Spotify album URIs, URLs, or IDs (one per line)")
     if not user_input:

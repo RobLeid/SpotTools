@@ -71,7 +71,7 @@ def to_excel(df):
     return output
 # Streamlit app
 def main():
-    st.title("📃 Spotify Playlist Info Finder")
+    st.title("📃 Spotify Playlist Info")
     st.caption("Note: this does not work for Spotify generated playlists...")
     user_input = st.text_input("Enter a Spotify playlist URI, URL, or ID")
 

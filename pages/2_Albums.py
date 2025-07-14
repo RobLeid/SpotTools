@@ -47,10 +47,8 @@ def parse_album_id(user_input):
 # Get all track IDs from album (with pagination)
 def get_album_tracks(album_id, access_token):
     headers = {"Authorization": f"Bearer {access_token}"}
-    base_url = f"https://api.spotify.com/v1/albums/{album_id}/tracks"
     album_url = f"https://api.spotify.com/v1/albums/{album_id}"
 
-    # Get album metadata
     album_response = requests.get(album_url, headers=headers)
     album_data = album_response.json()
     album_name = album_data.get("name", "Unknown Album")
@@ -58,8 +56,16 @@ def get_album_tracks(album_id, access_token):
     upc = album_data.get("external_ids", {}).get("upc", "N/A")
     label = album_data.get("label", "N/A")
 
+    # Extract P-line (℗)
+    p_line = "N/A"
+    for copyright in album_data.get("copyrights", []):
+        if copyright.get("type") == "P":
+            p_line = copyright.get("text", "N/A")
+            break
+
     # Paginate through all tracks
     track_items = []
+    base_url = f"https://api.spotify.com/v1/albums/{album_id}/tracks"
     limit = 50
     offset = 0
 
@@ -75,8 +81,7 @@ def get_album_tracks(album_id, access_token):
         offset += limit
 
     track_ids = [track["id"] for track in track_items]
-    return track_ids, album_name, album_image_url, track_items, upc, label
-
+    return track_ids, album_name, album_image_url, track_items, upc, label, p_line
 # Get metadata for track IDs
 def get_tracks(track_ids, access_token):
     base_url = "https://api.spotify.com/v1/tracks"
@@ -105,21 +110,25 @@ def to_excel(df):
 # Streamlit app
 def main():
     st.title("💿 Spotify Album Track Info Finder")
-    user_input = st.text_input("Enter a Spotify album URI, URL, or album ID")
 
-    if user_input:
-        album_id = parse_album_id(user_input)
-        if not album_id:
-            return
+    user_input = st.text_area("Enter multiple Spotify album URIs, URLs, or IDs (one per line)")
+    if not user_input:
+        return
 
-        access_token = get_access_token(client_id, client_secret)
-        track_ids, album_name, album_image_url, track_items, upc, label = get_album_tracks(album_id, access_token)
+    album_inputs = [parse_album_id(line) for line in user_input.splitlines() if line.strip()]
+    album_inputs = [aid for aid in album_inputs if aid]
 
+    access_token = get_access_token(client_id, client_secret)
+    all_dataframes = []
+
+    global_excel_placeholder = st.empty()
+
+    for album_id in album_inputs:
+        track_ids, album_name, album_image_url, track_items, upc, label, p_line = get_album_tracks(album_id, access_token)
         if not track_ids:
-            return
+            continue
 
         tracks = get_tracks(track_ids, access_token)
-
         simplified_data = []
         for t, meta in zip(tracks, track_items):
             simplified_data.append({
@@ -129,30 +138,38 @@ def main():
                 "Album Name": t["album"]["name"],
                 "Artist(s)": ", ".join([artist["name"] for artist in t["artists"]]),
                 "ISRC": t.get("external_ids", {}).get("isrc", "N/A"),
-                "Spotify URL": t["external_urls"]["spotify"]
+                "Spotify URL": t["external_urls"]["spotify"],
+                "UPC": upc,
+                "Label": label,
+                "℗ Line": p_line
             })
 
         df = pd.DataFrame(simplified_data)
-        df["UPC"] = upc
-        df["Label"] = label
+        all_dataframes.append(df)
 
-        
-        if album_image_url:
-            col1, col2 = st.columns([2, 6])
-
-            with col1:
+        col1, col2 = st.columns([1, 3])
+        with col1:
+            if album_image_url:
                 image = Image.open(urlopen(album_image_url))
                 st.image(image, caption=album_name)
-                excel_data = to_excel(df)
-                st.download_button(
-                    label="📥 Download as Excel",
-                    data=excel_data,
-                    file_name=f"{album_name}_tracks.xlsx",
-                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                )
+            st.download_button(
+                label=f"📥 Download Excel",
+                data=to_excel(df),
+                file_name=f"{album_name}_tracks.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            )
+        with col2:
+            st.dataframe(df, use_container_width=True, hide_index=True)
 
-            with col2:
-                st.dataframe(df, use_container_width=True, hide_index=True)
-        
+    if all_dataframes:
+        combined_df = pd.concat(all_dataframes, ignore_index=True)
+        global_excel = to_excel(combined_df)
+        global_excel_placeholder.download_button(
+            label="📦 Download All Albums to Excel",
+            data=global_excel,
+            file_name="All_Albums_Tracks.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+
 if __name__ == "__main__":
     main()

@@ -24,9 +24,9 @@ def get_access_token(client_id, client_secret):
     response_data = response.json()
     return response_data['access_token']
 
-# Function to extract track IDs from input
+# Function to extract track IDs from input (one per line)
 def parse_track_ids(user_input):
-    raw_items = [item.strip() for item in user_input.split(",")]
+    raw_items = [item.strip() for item in user_input.splitlines() if item.strip()]
     track_ids = []
 
     for item in raw_items:
@@ -80,7 +80,7 @@ def to_excel(df):
 # Main Streamlit app
 def main():
     st.title("🎵 Spotify Track Info Finder")
-    user_input = st.text_input("Enter Spotify track IDs, URIs, or URLs (comma-separated)")
+    user_input = st.text_area("Enter Spotify track IDs, URIs, or URLs (one per line)")
 
     if user_input:
         track_ids = parse_track_ids(user_input)

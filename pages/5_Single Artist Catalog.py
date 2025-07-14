@@ -83,6 +83,7 @@ def get_album_details(album_id, access_token):
     label = album_data.get("label", "N/A")
     release_date = album_data.get("release_date", "N/A")
     release_type = album_data.get("album_type", "N/A").capitalize()
+    album_artists = ", ".join([a["name"] for a in album_data.get("artists", [])])
 
     p_line = "N/A"
     for c in album_data.get("copyrights", []):
@@ -109,7 +110,7 @@ def get_album_details(album_id, access_token):
             break
         offset += limit
 
-    # Fetch full track metadata (for ISRCs)
+    # Fetch full track metadata (for ISRCs, explicit, duration)
     full_tracks = []
     for i in range(0, len(track_ids), 50):
         ids_chunk = ",".join(track_ids[i:i+50])
@@ -119,14 +120,22 @@ def get_album_details(album_id, access_token):
     # Combine metadata
     tracks = []
     for meta, full in zip(track_items, full_tracks):
+        duration_ms = full.get("duration_ms", 0)
+        minutes = duration_ms // 60000
+        seconds = (duration_ms % 60000) // 1000
+        duration_str = f"{minutes}:{seconds:02d}"
+
         tracks.append({
             "Disc Number": meta.get("disc_number", "N/A"),
             "Track Number": meta.get("track_number", "N/A"),
             "Track Name": full.get("name", meta.get("name")),
             "Album Name": album_name,
-            "Artist(s)": ", ".join([a["name"] for a in full.get("artists", [])]),
+            "Album Artists": album_artists,
+            "Track Artists": ", ".join([a["name"] for a in full.get("artists", [])]),
             "ISRC": full.get("external_ids", {}).get("isrc", "N/A"),
             "Spotify URL": full.get("external_urls", {}).get("spotify", "N/A"),
+            "Explicit": full.get("explicit", False),
+            "Duration": duration_str,
             "UPC": upc,
             "Label": label,
             "℗ Line": p_line,

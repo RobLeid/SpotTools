@@ -7,42 +7,10 @@ from PIL import Image
 from urllib.request import urlopen
 import re
 
-# Load environment variables
-client_id = st.secrets["CLIENT_ID"]
-client_secret = st.secrets["CLIENT_SECRET"]
-
-# Get Spotify access token
-def get_access_token(client_id, client_secret):
-    auth_url = 'https://accounts.spotify.com/api/token'
-    auth_header = base64.b64encode(f"{client_id}:{client_secret}".encode()).decode('utf-8')
-    headers = {
-        'Authorization': f'Basic {auth_header}',
-        'Content-Type': 'application/x-www-form-urlencoded'
-    }
-    data = {
-        'grant_type': 'client_credentials'
-    }
-    response = requests.post(auth_url, headers=headers, data=data)
-    return response.json()['access_token']
-
-# Parse album ID from URI, URL, or plain ID
-def parse_album_id(user_input):
-    user_input = user_input.strip()
-
-    if user_input.startswith("spotify:album:"):
-        return user_input.split(":")[2]
-    elif "open.spotify.com/album/" in user_input:
-        match = re.search(r"spotify\.com/album/([a-zA-Z0-9]+)", user_input)
-        if match:
-            return match.group(1)
-        else:
-            st.error("Invalid album URL. Could not extract album ID.")
-            return None
-    elif user_input.startswith("spotify:"):
-        st.error("This is not an album URI. Please enter a valid album URI, URL, or ID.")
-        return None
-    else:
-        return user_input
+from utils.auth import get_access_token
+from utils.parse import parse_album_id
+from utils.tracks import get_tracks
+from utils.tools import to_excel
 
 # Get all track IDs from album (with pagination)
 def get_album_tracks(album_id, access_token):
@@ -82,30 +50,6 @@ def get_album_tracks(album_id, access_token):
 
     track_ids = [track["id"] for track in track_items]
     return track_ids, album_name, album_image_url, track_items, upc, label, p_line
-# Get metadata for track IDs
-def get_tracks(track_ids, access_token):
-    base_url = "https://api.spotify.com/v1/tracks"
-    headers = {"Authorization": f"Bearer {access_token}"}
-    tracks = []
-
-    id_chunks = [track_ids[i:i+50] for i in range(0, len(track_ids), 50)]
-    for chunk in id_chunks:
-        ids_param = ",".join(chunk)
-        response = requests.get(f"{base_url}?ids={ids_param}", headers=headers)
-        data = response.json()
-        if "tracks" in data:
-            tracks.extend(data["tracks"])
-        else:
-            st.error(f"Error fetching track data: {data}")
-    return tracks
-
-# Convert DataFrame to Excel
-def to_excel(df):
-    output = BytesIO()
-    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-        df.to_excel(writer, index=False, sheet_name='Tracks')
-    output.seek(0)
-    return output
 
 # Streamlit app
 def main():
@@ -118,7 +62,7 @@ def main():
     album_inputs = [parse_album_id(line) for line in user_input.splitlines() if line.strip()]
     album_inputs = [aid for aid in album_inputs if aid]
 
-    access_token = get_access_token(client_id, client_secret)
+    access_token = get_access_token()
     all_dataframes = []
 
     global_excel_placeholder = st.empty()

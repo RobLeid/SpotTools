@@ -7,10 +7,9 @@ from urllib.request import urlopen
 import re
 import streamlit as st
 
-
-client_id = st.secrets["CLIENT_ID"]
-client_secret = st.secrets["CLIENT_SECRET"]
-
+from utils.auth import get_access_token
+from utils.parse import parse_artist_id
+from utils.tools import to_excel
 
 # Spotify markets
 MARKETS = [
@@ -25,27 +24,6 @@ MARKETS = [
     "SR", "ST", "SV", "SZ", "TD", "TG", "TH", "TJ", "TL", "TN", "TO", "TR", "TT", "TV", "TZ", "UA", "UG", "US", "UY",
     "UZ", "VC", "VE", "VN", "VU", "WS", "XK", "ZA", "ZM", "ZW"
 ]
-
-def get_access_token(client_id, client_secret):
-    auth_url = 'https://accounts.spotify.com/api/token'
-    auth_header = base64.b64encode(f"{client_id}:{client_secret}".encode()).decode('utf-8')
-    headers = {
-        'Authorization': f'Basic {auth_header}',
-        'Content-Type': 'application/x-www-form-urlencoded'
-    }
-    data = {'grant_type': 'client_credentials'}
-    response = requests.post(auth_url, headers=headers, data=data)
-    return response.json()['access_token']
-
-def parse_artist_id(user_input):
-    user_input = user_input.strip()
-    if user_input.startswith("spotify:artist:"):
-        return user_input.split(":")[2]
-    elif "open.spotify.com/artist/" in user_input:
-        match = re.search(r"spotify\.com/artist/([a-zA-Z0-9]+)", user_input)
-        return match.group(1) if match else None
-    else:
-        return user_input
 
 def get_artist_albums(artist_id, market, access_token):
     headers = {"Authorization": f"Bearer {access_token}"}
@@ -145,13 +123,6 @@ def get_album_details(album_id, access_token):
 
     return tracks, album_name, album_image_url
 
-def to_excel(df):
-    output = BytesIO()
-    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-        df.to_excel(writer, index=False, sheet_name='Tracks')
-    output.seek(0)
-    return output
-
 def main():
     st.title("🎤 Spotify Artist Discography")
 
@@ -161,13 +132,17 @@ def main():
     if not artist_input:
         return
 
-    artist_id = parse_artist_id(artist_input)
+    with st.spinner("🔍 Parsing artist ID..."):
+        artist_id = parse_artist_id(artist_input)
     if not artist_id:
         st.error("Invalid artist input.")
         return
 
-    access_token = get_access_token(client_id, client_secret)
-    albums = get_artist_albums(artist_id, market, access_token)
+    with st.spinner("🔑 Getting access token..."):
+        access_token = get_access_token()
+
+    with st.spinner("🎧 Fetching artist albums..."):
+        albums = get_artist_albums(artist_id, market, access_token)
 
     if not albums:
         st.warning("No albums found for this artist in the selected market.")
@@ -178,9 +153,8 @@ def main():
         grouped[album["album_type"]].append(album)
 
     all_dataframes = []
-
-    # Preprocess all albums and collect data
     album_sections = []
+
     for group_name, group_albums in grouped.items():
         if not group_albums:
             continue
@@ -188,25 +162,24 @@ def main():
         sorted_albums = sorted(group_albums, key=lambda x: x["release_date"], reverse=True)
         section_dataframes = []
 
-        for album in sorted_albums:
-            tracks, album_name, album_image_url = get_album_details(album["id"], access_token)
-            df = pd.DataFrame(tracks)
-            section_dataframes.append((df, album_name, album_image_url))
+        with st.spinner(f"📦 Processing {group_name}s..."):
+            for album in sorted_albums:
+                tracks, album_name, album_image_url = get_album_details(album["id"], access_token)
+                df = pd.DataFrame(tracks)
+                section_dataframes.append((df, album_name, album_image_url))
 
         album_sections.append((group_name, section_dataframes))
         all_dataframes.extend([df for df, _, _ in section_dataframes])
 
-    # Global download button
     if all_dataframes:
         combined_df = pd.concat(all_dataframes, ignore_index=True)
         st.download_button(
             label="📦 Download All Albums to Excel",
             data=to_excel(combined_df),
-            file_name="All_Artist_Releases.xlsx",
+            file_name="Single_Artist_Releases.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
 
-    # Display albums by section
     for group_name, section_dataframes in album_sections:
         st.header(group_name.capitalize() + "s")
         st.divider()
@@ -225,6 +198,7 @@ def main():
                 )
             with col2:
                 st.dataframe(df, use_container_width=True, hide_index=True)
+
 
 if __name__ == "__main__":
     main()

@@ -7,21 +7,8 @@ from PIL import Image
 from urllib.request import urlopen
 import re
 
-# Load environment variables
-client_id = st.secrets["CLIENT_ID"]
-client_secret = st.secrets["CLIENT_SECRET"]
-
-# Get Spotify access token
-def get_access_token(client_id, client_secret):
-    auth_url = 'https://accounts.spotify.com/api/token'
-    auth_header = base64.b64encode(f"{client_id}:{client_secret}".encode()).decode('utf-8')
-    headers = {
-        'Authorization': f'Basic {auth_header}',
-        'Content-Type': 'application/x-www-form-urlencoded'
-    }
-    data = {'grant_type': 'client_credentials'}
-    response = requests.post(auth_url, headers=headers, data=data)
-    return response.json()['access_token']
+from utils.auth import get_access_token
+from utils.tools import to_excel
 
 # Parse playlist ID from URI or URL
 def parse_playlist_id(user_input):
@@ -62,13 +49,6 @@ def get_playlist_metadata_and_tracks(playlist_id, access_token):
 
     return playlist_name, playlist_image_url, tracks
 
-# Convert DataFrame to Excel
-def to_excel(df):
-    output = BytesIO()
-    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-        df.to_excel(writer, index=False, sheet_name='Playlist')
-    output.seek(0)
-    return output
 # Streamlit app
 def main():
     st.title("📃 Spotify Playlist Info")
@@ -77,7 +57,7 @@ def main():
 
     if user_input:
         playlist_id = parse_playlist_id(user_input)
-        access_token = get_access_token(client_id, client_secret)
+        access_token = get_access_token()
         playlist_name, playlist_image_url, playlist_tracks = get_playlist_metadata_and_tracks(playlist_id, access_token)
 
         if playlist_tracks:

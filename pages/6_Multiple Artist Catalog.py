@@ -6,6 +6,10 @@ import time
 import re
 from io import BytesIO
 
+from utils.auth import get_access_token
+from utils.parse import parse_artist_id
+from utils.tools import to_excel
+
 # Spotify markets
 MARKETS = [
     "AD", "AE", "AG", "AL", "AM", "AO", "AR", "AT", "AU", "AZ", "BA", "BB", "BD", "BE", "BF", "BG", "BH", "BI", "BJ",
@@ -19,31 +23,6 @@ MARKETS = [
     "SR", "ST", "SV", "SZ", "TD", "TG", "TH", "TJ", "TL", "TN", "TO", "TR", "TT", "TV", "TZ", "UA", "UG", "US", "UY",
     "UZ", "VC", "VE", "VN", "VU", "WS", "XK", "ZA", "ZM", "ZW"
 ]
-
-# Spotify credentials
-client_id = st.secrets["CLIENT_ID"]
-client_secret = st.secrets["CLIENT_SECRET"]
-
-def get_access_token(client_id, client_secret):
-    auth_url = 'https://accounts.spotify.com/api/token'
-    auth_header = base64.b64encode(f"{client_id}:{client_secret}".encode()).decode('utf-8')
-    headers = {
-        'Authorization': f'Basic {auth_header}',
-        'Content-Type': 'application/x-www-form-urlencoded'
-    }
-    data = {'grant_type': 'client_credentials'}
-    response = requests.post(auth_url, headers=headers, data=data)
-    return response.json()['access_token']
-
-def parse_artist_id(user_input):
-    user_input = user_input.strip()
-    if user_input.startswith("spotify:artist:"):
-        return user_input.split(":")[2]
-    elif "open.spotify.com/artist/" in user_input:
-        match = re.search(r"spotify\.com/artist/([a-zA-Z0-9]+)", user_input)
-        return match.group(1) if match else None
-    else:
-        return user_input
 
 def get_artist_albums(artist_id, market, access_token):
     headers = {"Authorization": f"Bearer {access_token}"}
@@ -140,16 +119,8 @@ def get_album_details(album_id, access_token):
 
     return tracks
 
-
-def to_excel(df):
-    output = BytesIO()
-    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-        df.to_excel(writer, index=False, sheet_name='Tracks')
-    output.seek(0)
-    return output
-
 def main():
-    st.title("🎶 Bulk Artist Downloader")
+    st.title("🎶 Multiple Artist Search")
 
     artist_input = st.text_area("Enter multiple Spotify Artist URIs, URLs, or IDs (one per line)")
     market = st.selectbox("Select Market (Country Code)", MARKETS, index=MARKETS.index("US"))
@@ -162,7 +133,7 @@ def main():
             st.error("Please enter at least one valid artist ID.")
             return
 
-        access_token = get_access_token(client_id, client_secret)
+        access_token = get_access_token()
         all_data = []
         start_time = time.time()
 
@@ -181,7 +152,7 @@ def main():
             st.download_button(
                 label="📥 Download Excel File",
                 data=to_excel(df),
-                file_name="All_Artists_Discography.xlsx",
+                file_name="Multiple_Artists_Releases.xlsx",
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             )
         else:

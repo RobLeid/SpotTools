@@ -4,3 +4,4 @@
 .env.staging
 secrets.toml
 *Test*
+__pycache__

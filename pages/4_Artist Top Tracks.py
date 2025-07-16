@@ -7,32 +7,9 @@ from PIL import Image
 from urllib.request import urlopen
 import re
 
-# Load environment variables
-client_id = st.secrets["CLIENT_ID"]
-client_secret = st.secrets["CLIENT_SECRET"]
-
-# Get Spotify access token
-def get_access_token(client_id, client_secret):
-    auth_url = 'https://accounts.spotify.com/api/token'
-    auth_header = base64.b64encode(f"{client_id}:{client_secret}".encode()).decode('utf-8')
-    headers = {
-        'Authorization': f'Basic {auth_header}',
-        'Content-Type': 'application/x-www-form-urlencoded'
-    }
-    data = {'grant_type': 'client_credentials'}
-    response = requests.post(auth_url, headers=headers, data=data)
-    return response.json()['access_token']
-
-# Parse artist ID from URI or URL
-def parse_artist_id(user_input):
-    user_input = user_input.strip()
-    if user_input.startswith("spotify:artist:"):
-        return user_input.split(":")[2]
-    elif "open.spotify.com/artist/" in user_input:
-        match = re.search(r"artist/([a-zA-Z0-9]+)", user_input)
-        if match:
-            return match.group(1)
-    return user_input
+from utils.auth import get_access_token
+from utils.tools import to_excel
+from utils.parse import parse_artist_id
 
 # Get artist metadata and top tracks
 def get_artist_metadata_and_top_tracks(artist_id, access_token, market="US"):
@@ -49,14 +26,6 @@ def get_artist_metadata_and_top_tracks(artist_id, access_token, market="US"):
 
     return artist_name, artist_image_url, top_tracks
 
-# Convert DataFrame to Excel
-def to_excel(df):
-    output = BytesIO()
-    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-        df.to_excel(writer, index=False, sheet_name='Top Tracks')
-    output.seek(0)
-    return output
-
 # Streamlit app
 def main():
     st.title("🎤 Spotify Artist Top Tracks")
@@ -64,7 +33,7 @@ def main():
 
     if user_input:
         artist_id = parse_artist_id(user_input)
-        access_token = get_access_token(client_id, client_secret)
+        access_token = get_access_token()
         artist_name, artist_image_url, top_tracks = get_artist_metadata_and_top_tracks(artist_id, access_token)
 
         if top_tracks:
